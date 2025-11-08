@@ -17,6 +17,14 @@ export class ShipComplianceRepository implements IShipComplianceRepository {
     return result.rows[0] ? this.mapToEntity(result.rows[0]) : null;
   }
 
+  async findByYear(year: number): Promise<ShipCompliance[]> {
+    const result = await pool.query(
+      "SELECT * FROM ship_compliance WHERE year = $1 ORDER BY ship_id",
+      [year]
+    );
+    return result.rows.map((row) => this.mapToEntity(row));
+  }
+
   async create(data: Omit<ShipComplianceProps, "id">): Promise<ShipCompliance> {
     const query = `
       INSERT INTO ship_compliance (ship_id, year, cb_gco2eq)

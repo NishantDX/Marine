@@ -102,4 +102,55 @@ export class ComplianceController {
       });
     }
   }
+
+  /**
+   * GET /compliance/cb-all?year=YYYY
+   * Get compliance balance for ALL ships in a specific year
+   */
+  static async getAllComplianceByYear(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const { year } = req.query;
+
+      if (!year) {
+        res.status(400).json({
+          success: false,
+          error: "year is required",
+        });
+        return;
+      }
+
+      const yearNum = parseInt(year as string);
+
+      // Get all compliance records for the year
+      const allCompliance = await shipComplianceRepository.findByYear(yearNum);
+
+      // Determine if this is historical data
+      const isHistorical = yearNum < 2025;
+
+      const response: ApiResponse<any> = {
+        success: true,
+        data: {
+          year: yearNum,
+          isHistorical,
+          ships: allCompliance.map((c) => ({
+            shipId: c.shipId,
+            cbValue: c.cbGco2eq,
+            hasSurplus: c.hasSurplus(),
+            hasDeficit: c.hasDeficit(),
+          })),
+        },
+        message: `Retrieved compliance data for ${allCompliance.length} ships in ${yearNum}`,
+      };
+
+      res.json(response);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
 }
