@@ -67,23 +67,18 @@ export class RouteController {
   /**
    * GET /routes/comparison
    * Get comparison data between baseline and comparison routes
+   * Query params:
+   * - baselineId (optional): specific baseline route ID, or uses the route marked as baseline
+   * - comparisonId (optional): specific route to compare, or compares all non-baseline routes
    */
   static async getComparison(req: Request, res: Response): Promise<void> {
     try {
       const { baselineId, comparisonId } = req.query;
 
-      if (!baselineId || !comparisonId) {
-        res.status(400).json({
-          success: false,
-          error: "baselineId and comparisonId are required",
-        });
-        return;
-      }
-
       const useCase = new GetComparisonUseCase(routeRepository);
       const result = await useCase.execute({
-        baselineId: baselineId as string,
-        comparisonId: comparisonId as string,
+        baselineId: baselineId as string | undefined,
+        comparisonId: comparisonId as string | undefined,
       });
 
       const response: ApiResponse<any> = {

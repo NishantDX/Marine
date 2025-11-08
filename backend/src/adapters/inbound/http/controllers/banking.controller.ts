@@ -53,7 +53,7 @@ export class BankingController {
    */
   static async bankSurplus(req: Request, res: Response): Promise<void> {
     try {
-      const { shipId, year } = req.body;
+      const { shipId, year, amount } = req.body;
 
       if (!shipId || !year) {
         res.status(400).json({
@@ -67,11 +67,15 @@ export class BankingController {
         shipComplianceRepository,
         bankEntryRepository
       );
-      const bankEntry = await useCase.execute(shipId, year);
+      const result = await useCase.execute(shipId, year, amount);
 
       const response: ApiResponse<any> = {
         success: true,
-        data: bankEntry.toJSON(),
+        data: {
+          cbBefore: result.cbBefore,
+          applied: result.applied,
+          cbAfter: result.cbAfter,
+        },
         message: "Surplus banked successfully",
       };
 

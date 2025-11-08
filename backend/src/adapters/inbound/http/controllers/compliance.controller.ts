@@ -12,7 +12,7 @@ const bankEntryRepository = new BankEntryRepository();
 
 export class ComplianceController {
   /**
-   * GET /compliance/cb?shipId=XXX&year=YYYY
+   * POST /compliance/cb
    * Compute and get compliance balance
    */
   static async getComplianceBalance(
@@ -20,7 +20,7 @@ export class ComplianceController {
     res: Response
   ): Promise<void> {
     try {
-      const { shipId, year } = req.query;
+      const { shipId, year } = req.body;
 
       if (!shipId || !year) {
         res.status(400).json({
@@ -41,7 +41,11 @@ export class ComplianceController {
 
       const response: ApiResponse<any> = {
         success: true,
-        data: compliance.toJSON(),
+        data: {
+          cbValue: compliance.cbGco2eq,
+          shipId: compliance.shipId,
+          year: compliance.year,
+        },
         message: "Compliance balance computed successfully",
       };
 
