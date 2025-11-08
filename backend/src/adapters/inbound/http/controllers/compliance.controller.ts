@@ -1,0 +1,96 @@
+import { Request, Response } from "express";
+import { ComputeCBUseCase } from "../../../../core/application/use-cases/compliance/ComputeCB.usecase";
+import { GetAdjustedCBUseCase } from "../../../../core/application/use-cases/compliance/GetAdjustedCB.usecase";
+import { ShipComplianceRepository } from "../../../outbound/postgres/repositories/ShipComplianceRepository";
+import { RouteRepository } from "../../../outbound/postgres/repositories/RouteRepository";
+import { BankEntryRepository } from "../../../outbound/postgres/repositories/BankEntryRepository";
+import { ApiResponse } from "../../../../shared/types/common.types";
+
+const shipComplianceRepository = new ShipComplianceRepository();
+const routeRepository = new RouteRepository();
+const bankEntryRepository = new BankEntryRepository();
+
+export class ComplianceController {
+  /**
+   * GET /compliance/cb?shipId=XXX&year=YYYY
+   * Compute and get compliance balance
+   */
+  static async getComplianceBalance(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const { shipId, year } = req.query;
+
+      if (!shipId || !year) {
+        res.status(400).json({
+          success: false,
+          error: "shipId and year are required",
+        });
+        return;
+      }
+
+      const useCase = new ComputeCBUseCase(
+        shipComplianceRepository,
+        routeRepository
+      );
+      const compliance = await useCase.execute(
+        shipId as string,
+        parseInt(year as string)
+      );
+
+      const response: ApiResponse<any> = {
+        success: true,
+        data: compliance.toJSON(),
+        message: "Compliance balance computed successfully",
+      };
+
+      res.json(response);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * GET /compliance/adjusted-cb?shipId=XXX&year=YYYY
+   * Get adjusted compliance balance (CB + banked)
+   */
+  static async getAdjustedCB(req: Request, res: Response): Promise<void> {
+    try {
+      const { shipId, year } = req.query;
+
+      if (!shipId || !year) {
+        res.status(400).json({
+          success: false,
+          error: "shipId and year are required",
+        });
+        return;
+      }
+
+      const useCase = new GetAdjustedCBUseCase(
+        shipComplianceRepository,
+        bankEntryRepository
+      );
+      const adjustedCB = await useCase.execute(
+        shipId as string,
+        parseInt(year as string)
+      );
+
+      const response: ApiResponse<any> = {
+        success: true,
+        data: { adjustedCB },
+        message: "Adjusted CB retrieved successfully",
+      };
+
+      res.json(response);
+    } catch (error: any) {
+      res.status(404).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+}
