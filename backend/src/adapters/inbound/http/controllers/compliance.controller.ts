@@ -30,14 +30,16 @@ export class ComplianceController {
         return;
       }
 
+      const yearNum = parseInt(year as string);
+
       const useCase = new ComputeCBUseCase(
         shipComplianceRepository,
         routeRepository
       );
-      const compliance = await useCase.execute(
-        shipId as string,
-        parseInt(year as string)
-      );
+      const compliance = await useCase.execute(shipId as string, yearNum);
+
+      // Determine if this is historical data (pre-compliance period)
+      const isHistorical = yearNum < 2025;
 
       const response: ApiResponse<any> = {
         success: true,
@@ -45,8 +47,11 @@ export class ComplianceController {
           cbValue: compliance.cbGco2eq,
           shipId: compliance.shipId,
           year: compliance.year,
+          isHistorical,
         },
-        message: "Compliance balance computed successfully",
+        message: isHistorical
+          ? "Historical compliance data retrieved"
+          : "Compliance balance computed successfully",
       };
 
       res.json(response);
