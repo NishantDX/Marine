@@ -1,99 +1,130 @@
 # FuelEU Maritime Compliance Backend
 
-A comprehensive backend system for managing FuelEU Maritime compliance, implementing **Hexagonal Architecture** (Ports & Adapters) with Node.js, TypeScript, and PostgreSQL.
+A TypeScript/Node.js backend API for tracking ship compliance with EU Regulation 2023/1805 (FuelEU Maritime). Built with hexagonal architecture and PostgreSQL.
 
-## 🏗️ Architecture
+---
 
-This project follows **Clean Architecture / Hexagonal Architecture** principles:
+## What This Does
+
+This API helps track whether ships comply with EU greenhouse gas intensity regulations. It handles:
+
+- **Route Management** - Track ship routes with GHG intensity data
+- **Compliance Balance (CB)** - Calculate if ships are above/below emission targets
+- **Banking (Article 20)** - Allow ships to save surplus compliance for future use
+- **Pooling (Article 21)** - Let ships share compliance balances (surplus helps deficit)
+
+---
+
+## Tech Stack
+
+- **Runtime:** Node.js 20+
+- **Language:** TypeScript
+- **Framework:** Express.js
+- **Database:** PostgreSQL 16
+- **Architecture:** Hexagonal (Ports & Adapters)
+
+---
+
+## Architecture Overview
+
+I structured this using **hexagonal architecture** to keep business logic separate from frameworks:
 
 ```
 src/
-├── core/                      # Business Logic (Framework-Independent)
-│   ├── domain/               # Entities & Value Objects
-│   ├── application/          # Use Cases & Services
-│   └── ports/                # Interfaces (Contracts)
-├── adapters/                 # External World Connections
-│   ├── inbound/http/        # Controllers & Routes
-│   └── outbound/postgres/   # Database Repositories
-├── infrastructure/          # Framework & Server Setup
-│   ├── db/                  # Database Connection & Migrations
-│   └── server/              # Express App Configuration
-└── shared/                  # Common Utilities
-    ├── constants/           # FuelEU Constants
-    ├── types/               # TypeScript Types
-    └── utils/               # Calculation Functions
+├── core/                    # Business logic (framework-independent)
+│   ├── domain/             # Entities & value objects
+│   │   ├── entities/       # Route, ShipCompliance, BankEntry, Pool
+│   │   └── value-objects/  # ComplianceBalance
+│   ├── application/        # Use cases (business operations)
+│   │   ├── use-cases/      # One file per operation
+│   │   └── services/       # Reusable services (pooling algorithm)
+│   └── ports/              # Interfaces (contracts)
+│       ├── inbound/        # What the app can do
+│       └── outbound/       # What the app needs (repos)
+│
+├── adapters/               # Framework implementations
+│   ├── inbound/
+│   │   └── http/           # Express controllers & routes
+│   └── outbound/
+│       └── postgres/       # Database repositories
+│
+├── infrastructure/         # External services
+│   ├── db/                 # Database connection & migrations
+│   └── server/             # Express app setup
+│
+└── shared/                 # Shared utilities
+    ├── constants/          # FuelEU regulation values
+    ├── types/              # TypeScript types
+    └── utils/              # Helper functions
 ```
 
-## 🚀 Features
+**Why Hexagonal?**
 
-### ✅ Routes Management
+- Business logic in `core/` doesn't know about Express or PostgreSQL
+- Can swap databases or frameworks without touching business rules
+- Easy to test (mock the ports)
 
-- Store and retrieve shipping routes
-- Set baseline routes for comparison
-- Filter by vessel type, fuel type, and year
+---
 
-### ✅ Compliance Calculation
+## Prerequisites
 
-- Compute Compliance Balance (CB) based on FuelEU formula
-- Track surplus and deficit per ship
-- Calculate adjusted CB including banked amounts
+Make sure you have:
 
-### ✅ Banking (Article 20)
+- Node.js 20+ installed
+- PostgreSQL 16+ installed and running
+- Git
 
-- Bank positive compliance balance
-- Apply banked surplus to deficits
-- Track banking history
+---
 
-### ✅ Pooling (Article 21)
+## Setup Instructions
 
-- Create pools with multiple ships
-- Greedy allocation algorithm
-- Validate pooling rules (sum ≥ 0, no ship exits worse)
-
-## 📋 Prerequisites
-
-- **Node.js** 18+
-- **PostgreSQL** 14+
-- **npm** or **yarn**
-
-## 🔧 Installation
-
-### 1. Clone the repository
+### 1. Clone the Repo
 
 ```bash
-cd backend
+git clone https://github.com/NishantDX/Marine.git
+cd Marine/backend
 ```
 
-### 2. Install dependencies
+### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Configure environment
+### 3. Configure Environment
 
-Create `.env` file:
+Create a `.env` file in the `backend/` folder:
 
 ```env
-PORT=5000
+# Database
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=nishant
-DB_PASSWORD=Secret#4545
 DB_NAME=marine_project
+DB_USER=your_postgres_username
+DB_PASSWORD=your_postgres_password
+
+# Server
+PORT=5000
 NODE_ENV=development
 ```
 
-### 4. Setup PostgreSQL Database
+**Note:** Replace `your_postgres_username` and `your_postgres_password` with your actual PostgreSQL credentials.
 
-```bash
-# Create database in PostgreSQL
-psql -U nishant -h localhost
+### 4. Create Database
+
+Open pgAdmin or psql and create the database:
+
+```sql
 CREATE DATABASE marine_project;
-\q
 ```
 
-### 5. Run migrations and seed data
+Or via command line:
+
+```bash
+psql -U postgres -c "CREATE DATABASE marine_project;"
+```
+
+### 5. Run Migrations & Seed Data
 
 ```bash
 npm run db:setup
@@ -101,209 +132,329 @@ npm run db:setup
 
 This will:
 
-- Create all tables (routes, ship_compliance, bank_entries, pools, pool_members)
-- Seed sample routes from assignment (R001-R005)
-- Seed sample ship compliance data
+- Create 5 tables (routes, ship_compliance, bank_entries, pools, pool_members)
+- Insert sample route data (R001-R005)
+- Insert sample ship compliance data (4 ships)
 
-## 🏃 Running the Application
+### 6. Start the Server
 
-### Development Mode (with auto-reload)
+**Development mode (with auto-reload):**
 
 ```bash
 npm run dev
 ```
 
-### Production Build
+**Production mode:**
 
 ```bash
 npm run build
 npm start
 ```
 
-Server will start at: **http://localhost:5000**
+You should see:
 
-## 📡 API Endpoints
+```
+============================================================
+🚀 FuelEU Maritime Compliance API
+============================================================
+📍 Server URL: http://localhost:5000
+🗄️  Database: marine_project
+📅 Environment: development
+============================================================
+
+✅ Server is ready to accept connections
+```
+
+---
+
+## API Endpoints
 
 ### Routes
 
-```http
-GET    /api/routes                    # Get all routes (with filters)
-GET    /api/routes/comparison         # Get baseline comparison
-POST   /api/routes/:routeId/baseline  # Set route as baseline
-```
+| Method | Endpoint                                             | Description                            |
+| ------ | ---------------------------------------------------- | -------------------------------------- |
+| GET    | `/api/routes`                                        | Get all routes (with optional filters) |
+| POST   | `/api/routes/:routeId/baseline`                      | Set a route as baseline                |
+| GET    | `/api/routes/comparison?baselineId=X&comparisonId=Y` | Compare routes                         |
 
 ### Compliance
 
-```http
-GET    /api/compliance/cb?shipId=XXX&year=YYYY           # Compute CB
-GET    /api/compliance/adjusted-cb?shipId=XXX&year=YYYY  # Get adjusted CB
-```
+| Method | Endpoint                                      | Description                           |
+| ------ | --------------------------------------------- | ------------------------------------- |
+| POST   | `/api/compliance/cb`                          | Compute compliance balance for a ship |
+| GET    | `/api/compliance/cb-all?year=YYYY`            | Get all ships' CB for a year          |
+| GET    | `/api/compliance/adjusted-cb?shipId=X&year=Y` | Get adjusted CB (after banking)       |
 
-### Banking
+### Banking (Article 20)
 
-```http
-GET    /api/banking/records?shipId=XXX&year=YYYY  # Get bank records
-POST   /api/banking/bank                          # Bank surplus
-POST   /api/banking/apply                         # Apply banked
-```
+| Method | Endpoint                               | Description                     |
+| ------ | -------------------------------------- | ------------------------------- |
+| POST   | `/api/banking/bank`                    | Bank surplus compliance balance |
+| POST   | `/api/banking/apply`                   | Apply banked balance to deficit |
+| GET    | `/api/banking/records?shipId=X&year=Y` | Get banking transaction history |
 
-### Pooling
+### Pooling (Article 21)
 
-```http
-POST   /api/pools        # Create pool
-GET    /api/pools?year=YYYY  # Get pools by year
-```
+| Method | Endpoint               | Description                         |
+| ------ | ---------------------- | ----------------------------------- |
+| POST   | `/api/pools`           | Create a pool and allocate balances |
+| GET    | `/api/pools?year=YYYY` | Get pools for a year                |
 
-## 📊 Sample API Calls
+---
 
-### Get all routes
+## Example API Calls
+
+### Get All Routes
 
 ```bash
 curl http://localhost:5000/api/routes
 ```
 
-### Set baseline
+**Response:**
 
-```bash
-curl -X POST http://localhost:5000/api/routes/R004/baseline
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "routeId": "R001",
+      "vesselType": "Container",
+      "fuelType": "HFO",
+      "year": 2024,
+      "ghgIntensity": 91.0,
+      "isBaseline": false
+    }
+  ],
+  "message": "Routes retrieved successfully"
+}
 ```
 
-### Compute CB
+### Compute Compliance Balance
 
 ```bash
-curl http://localhost:5000/api/compliance/cb?shipId=SHIP-001&year=2025
+curl -X POST http://localhost:5000/api/compliance/cb \
+  -H "Content-Type: application/json" \
+  -d '{"shipId":"SHIP001","year":2025}'
 ```
 
-### Bank surplus
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "cbValue": -236071440,
+    "shipId": "SHIP001",
+    "year": 2025,
+    "isHistorical": false
+  },
+  "message": "Compliance balance computed successfully"
+}
+```
+
+### Get All Ships for Banking Tab
+
+```bash
+curl http://localhost:5000/api/compliance/cb-all?year=2025
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "year": 2025,
+    "isHistorical": false,
+    "ships": [
+      {
+        "shipId": "SHIP-001",
+        "cbValue": 15000.5,
+        "hasSurplus": true,
+        "hasDeficit": false
+      },
+      {
+        "shipId": "SHIP-002",
+        "cbValue": -8500.75,
+        "hasSurplus": false,
+        "hasDeficit": true
+      }
+    ]
+  }
+}
+```
+
+### Bank Surplus
 
 ```bash
 curl -X POST http://localhost:5000/api/banking/bank \
   -H "Content-Type: application/json" \
-  -d '{"shipId":"SHIP-001","year":2025}'
+  -d '{"shipId":"SHIP-003","year":2025,"amount":15000}'
 ```
 
-### Create pool
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "cbBefore": 22000.0,
+    "applied": 15000,
+    "cbAfter": 7000.0
+  },
+  "message": "Surplus banked successfully"
+}
+```
+
+### Create a Pool
 
 ```bash
 curl -X POST http://localhost:5000/api/pools \
   -H "Content-Type: application/json" \
-  -d '{"year":2025,"shipIds":["SHIP-001","SHIP-002"]}'
+  -d '{"year":2025,"shipIds":["SHIP-001","SHIP-002","SHIP-003"]}'
 ```
 
-## 🧮 FuelEU Formulas
+---
+
+## Database Schema
+
+### routes table
+
+- route_id (unique)
+- vessel_type, fuel_type, year
+- ghg_intensity, fuel_consumption, distance
+- is_baseline (boolean)
+
+### ship_compliance table
+
+- ship_id, year (composite unique)
+- cb_gco2eq (compliance balance in gCO₂e)
+
+### bank_entries table
+
+- ship_id, year, amount_gco2eq
+- positive = banked, negative = applied
+
+### pools table
+
+- pool_id, year
+
+### pool_members table
+
+- pool_id, ship_id
+- cb_before, cb_after, contribution
+
+---
+
+## Key Formulas
 
 ### Target GHG Intensity (2025)
 
 ```
-89.3368 gCO₂e/MJ (2% below 91.16)
+Target = 91.16 × (1 - 0.02) = 89.3368 gCO₂e/MJ
 ```
 
 ### Compliance Balance
 
 ```
-CB = (Target - Actual) × Energy in scope
-Energy in scope = Fuel consumption (t) × 41,000 MJ/t
+CB = (Target - Actual GHG Intensity) × Energy in Scope
+Energy in Scope = Fuel Consumption (tonnes) × 41,000 MJ/tonne
 ```
 
-### Comparison Percentage
+### Percentage Difference
 
 ```
-% Diff = ((Comparison / Baseline) - 1) × 100
+% Diff = ((Comparison GHG / Baseline GHG) - 1) × 100
 ```
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-npm test
-
-# Watch mode
-npm run test:watch
-```
-
-## 📝 Code Quality
-
-```bash
-# Lint
-npm run lint
-
-# Format
-npm run format
-```
-
-## 📁 Project Structure Details
-
-| Layer              | Purpose                    | Dependencies           |
-| ------------------ | -------------------------- | ---------------------- |
-| **Domain**         | Business entities & rules  | None (pure TypeScript) |
-| **Application**    | Use cases & business logic | Domain only            |
-| **Ports**          | Interface contracts        | Domain & Application   |
-| **Adapters**       | External integrations      | Ports                  |
-| **Infrastructure** | Framework setup            | Everything             |
-
-## 🛡️ Design Principles
-
-- ✅ **Dependency Inversion**: Core doesn't depend on frameworks
-- ✅ **Single Responsibility**: Each layer has one job
-- ✅ **Interface Segregation**: Small, focused interfaces
-- ✅ **Separation of Concerns**: Clear boundaries between layers
-
-## 📚 Key Dependencies
-
-| Package      | Purpose               |
-| ------------ | --------------------- |
-| `express`    | HTTP server framework |
-| `pg`         | PostgreSQL client     |
-| `typescript` | Type safety           |
-| `dotenv`     | Environment variables |
-| `cors`       | Cross-origin requests |
-
-## 🐛 Troubleshooting
-
-### Database connection fails
-
-```bash
-# Check PostgreSQL is running
-pg_isready -U nishant
-
-# Test connection
-psql -U nishant -d marine_project -c "SELECT 1"
-```
-
-### Port already in use
-
-```bash
-# Change PORT in .env file
-PORT=3000
-```
-
-### TypeScript errors
-
-```bash
-# Rebuild
-npm run build
-```
-
-## 📖 References
-
-- **FuelEU Maritime Regulation**: (EU) 2023/1805
-- **Article 20**: Banking mechanism
-- **Article 21**: Pooling arrangements
-- **Annex IV**: Calculation methodologies
-
-## 👨‍💻 Development
-
-Built with:
-
-- **Hexagonal Architecture** for maintainability
-- **TypeScript** for type safety
-- **PostgreSQL** for data persistence
-- **Express.js** for HTTP layer
-
-## 📄 License
-
-ISC
 
 ---
 
-**Made for FuelEU Maritime Compliance Assignment** 🚢
+## Running Tests
+
+(Tests not implemented yet - would use Jest + Supertest)
+
+```bash
+npm test
+```
+
+---
+
+## Troubleshooting
+
+### Server won't start
+
+**Error:** `ECONNREFUSED` or database connection fails
+
+**Fix:**
+
+1. Make sure PostgreSQL is running
+2. Check your `.env` credentials
+3. Verify database `marine_project` exists
+
+### Migrations fail
+
+**Error:** `relation "routes" already exists`
+
+**Fix:** Tables already exist. Either:
+
+- Drop and recreate database: `DROP DATABASE marine_project; CREATE DATABASE marine_project;`
+- Or skip migrations and just seed: Modify `seed.ts` to only run seed part
+
+### Year validation error
+
+**Error:** `Year must be 2020 or later`
+
+**Fix:** Make sure you're using years 2020-2025 in requests (historical data supported from 2020)
+
+---
+
+## Project Structure Details
+
+### Dependency Flow
+
+```
+HTTP Request
+  ↓
+Controller (adapters/inbound)
+  ↓
+Use Case (core/application)
+  ↓
+Repository Interface (core/ports/outbound)
+  ↓
+Repository Implementation (adapters/outbound)
+  ↓
+PostgreSQL Database
+```
+
+**Key Principle:** Core business logic only depends on interfaces (ports), never on concrete implementations.
+
+---
+
+## Future Improvements
+
+- [ ] Add unit tests for domain entities
+- [ ] Add integration tests for API endpoints
+- [ ] Implement authentication & authorization
+- [ ] Add request validation with Joi or Zod
+- [ ] Set up Docker for easy deployment
+- [ ] Add API documentation with Swagger
+- [ ] Implement caching with Redis
+- [ ] Add logging with Winston
+
+---
+
+## License
+
+MIT
+
+---
+
+## Author
+
+Built as part of a maritime compliance internship project.
+
+---
+
+## Questions?
+
+Check `SETUP.md` for detailed setup help or `AGENT_WORKFLOW.md` to see how AI assisted development.
